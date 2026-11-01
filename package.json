@@ -1,0 +1,23 @@
+{
+  "name": "ref-01-audio-inspector",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "REF-01 // Audio Quality Inspector & Acoustic Field Analyzer",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "three": "^0.187.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/three": "^0.187.0",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5"
+  }
+}

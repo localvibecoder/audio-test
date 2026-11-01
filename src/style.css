@@ -1,0 +1,269 @@
+@import "tailwindcss";
+
+/*
+ * REF-01 // DESIGN TOKENS
+ * Industrial palette. No gradients, no glows, no blur, no rounded cards.
+ */
+@theme {
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+
+  --color-chassis: #0a0a0a;
+  --color-panel: #0e0e0e;
+  --color-strip: #0b0b0b;
+  --color-void: #050505;
+  --color-grid: #141414;
+  --color-hair: #222222;
+  --color-focus: #3a3a3a;
+  --color-ink: #ededed;
+  --color-label: #686868;
+  --color-signal: #ff4d00;
+  --color-hold: #8a8a8a;
+  --color-pass: #00e676;
+  --color-warn: #ffb300;
+  --color-alert: #ff1744;
+}
+
+@layer base {
+  :root {
+    color-scheme: dark;
+    accent-color: #ff4d00;
+  }
+
+  html,
+  body {
+    margin: 0;
+    width: 100vw;
+    height: 100dvh;
+    overflow: hidden;
+    background: #0a0a0a;
+    color: #ededed;
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1, "zero" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  button {
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+  }
+
+  canvas {
+    display: block;
+  }
+
+  ::selection {
+    background: #ff4d00;
+    color: #0a0a0a;
+  }
+}
+
+@layer components {
+  /* Compact technical header strip shared by every rack module. */
+  .hdr {
+    @apply h-7 px-2.5 border-b border-[#222222] bg-[#0B0B0B] flex items-center justify-between text-[10px] tracking-[0.14em] uppercase text-[#686868] shrink-0 gap-3 whitespace-nowrap;
+  }
+
+  .hdr-id {
+    @apply text-[#EDEDED] font-medium;
+  }
+
+  /* Numeric readouts never jitter. */
+  .num {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1, "zero" 1;
+  }
+
+  .lbl {
+    @apply text-[9px] tracking-[0.14em] uppercase text-[#686868];
+  }
+
+  /* Hardware push-button. Max 2px radius. */
+  .btn {
+    @apply h-7 px-2.5 inline-flex items-center gap-1.5 border border-[#2A2A2A] bg-[#111111] text-[10px] tracking-[0.12em] uppercase text-[#EDEDED] rounded-[2px] whitespace-nowrap shrink-0;
+    transition: border-color 80ms linear, background-color 80ms linear, color 80ms linear;
+  }
+
+  .btn:hover {
+    border-color: #3a3a3a;
+    background: #151515;
+  }
+
+  .btn:active {
+    background: #0a0a0a;
+    transform: translateY(0.5px);
+  }
+
+  .btn:focus-visible {
+    outline: 1px solid #686868;
+    outline-offset: 1px;
+    border-color: #3a3a3a;
+  }
+
+  .btn:disabled {
+    color: #3a3a3a;
+    cursor: default;
+    border-color: #1c1c1c;
+  }
+
+  /* LED pip inside toggles. */
+  .led {
+    @apply inline-block w-1.5 h-1.5 shrink-0 bg-[#2A2A2A];
+  }
+
+  .btn[aria-pressed="true"] .led {
+    background: #ff4d00;
+  }
+
+  .btn[aria-pressed="true"] {
+    border-color: #ff4d00;
+    color: #ff4d00;
+  }
+
+  /* Transcode simulator: fully lit when engaged. */
+  .btn-signal[aria-pressed="true"] {
+    background: #ff4d00;
+    border-color: #ff4d00;
+    color: #0a0a0a;
+  }
+
+  .btn-signal[aria-pressed="true"] .led {
+    background: #0a0a0a;
+  }
+
+  /* Segmented mechanical selector. */
+  .seg {
+    @apply flex items-stretch h-5 border border-[#2A2A2A] rounded-[2px] overflow-hidden;
+  }
+
+  .seg > button {
+    @apply px-2 text-[9px] tracking-[0.12em] uppercase text-[#686868] bg-[#0E0E0E] border-r border-[#2A2A2A] whitespace-nowrap;
+  }
+
+  .seg > button:last-child {
+    border-right: 0;
+  }
+
+  .seg > button[aria-pressed="true"] {
+    background: #ededed;
+    color: #0a0a0a;
+  }
+
+  .seg > button:focus-visible {
+    outline: 1px solid #ff4d00;
+    outline-offset: -2px;
+  }
+
+  /* Canvas host: hard guardrail against layout blow-out. */
+  .viewport {
+    @apply relative min-h-0 min-w-0 overflow-hidden;
+  }
+
+  .viewport > canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Telemetry cell. */
+  .cell {
+    @apply flex flex-col justify-between px-2.5 py-1.5 border-[#222222] min-w-0;
+  }
+
+  .cell-val {
+    @apply text-[17px] leading-none text-[#EDEDED] font-medium tabular-nums whitespace-nowrap;
+    font-family: var(--font-mono);
+    font-feature-settings: "tnum" 1, "zero" 1;
+  }
+
+  .cell-unit {
+    @apply text-[9px] text-[#686868] ml-1 tracking-[0.1em];
+  }
+
+  /* 3D HUD corner readouts. */
+  .hud {
+    @apply absolute text-[9px] leading-[1.45] tracking-[0.14em] uppercase text-[#686868] pointer-events-none tabular-nums;
+    font-family: var(--font-mono);
+    font-feature-settings: "tnum" 1, "zero" 1;
+  }
+
+  .hud b {
+    @apply text-[#EDEDED] font-medium;
+  }
+
+  .hud-bar {
+    @apply block h-[3px] w-28 bg-[#1A1A1A] mt-1 relative overflow-hidden;
+  }
+
+  .hud-bar > i {
+    @apply absolute left-0 top-0 bottom-0 bg-[#EDEDED];
+    width: 0%;
+  }
+
+  /* Monitor slider (native range, themed). */
+  .mon {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 84px;
+    height: 12px;
+    background: transparent;
+    cursor: pointer;
+  }
+
+  .mon::-webkit-slider-runnable-track {
+    height: 2px;
+    background: #2a2a2a;
+  }
+
+  .mon::-moz-range-track {
+    height: 2px;
+    background: #2a2a2a;
+  }
+
+  .mon::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 6px;
+    height: 12px;
+    margin-top: -5px;
+    background: #ededed;
+    border: 0;
+    border-radius: 1px;
+  }
+
+  .mon::-moz-range-thumb {
+    width: 6px;
+    height: 12px;
+    background: #ededed;
+    border: 0;
+    border-radius: 1px;
+  }
+
+  .mon:focus-visible {
+    outline: 1px solid #686868;
+    outline-offset: 2px;
+  }
+
+  /* Clip LED (latching). */
+  .clip {
+    @apply h-5 flex items-center justify-center border border-[#2A2A2A] bg-[#111111] text-[8px] tracking-[0.14em] text-[#3A3A3A] rounded-[2px] min-w-0;
+  }
+
+  .clip[data-on="true"] {
+    background: #ff1744;
+    border-color: #ff1744;
+    color: #0a0a0a;
+  }
+
+  .clip:focus-visible {
+    outline: 1px solid #686868;
+    outline-offset: 1px;
+  }
+}
+

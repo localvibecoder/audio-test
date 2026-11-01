@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0A0A0A" />
+    <meta name="description" content="REF-01 // Audio Quality Inspector & Acoustic Field Analyzer — spectral fidelity, transcode detection, stereo phase and loudness metering." />
+    <title>REF-01 // AUDIO QUALITY INSPECTOR</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%230A0A0A'/%3E%3Crect x='3' y='3' width='10' height='10' fill='%23FF4D00'/%3E%3C/svg%3E" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600&family=JetBrains+Mono:wght@400;500;700&display=swap"
+    />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div
+      id="app"
+      class="grid h-dvh w-screen overflow-hidden select-none bg-[#0A0A0A] text-[#EDEDED] grid-rows-[56px_minmax(0,1fr)_24px] min-h-0 min-w-0"
+    >
+      <!-- ═════════════════════ TOP BAR: TRANSPORT / METADATA / SIMULATOR ═════════════════════ -->
+      <header
+        class="grid h-14 min-w-0 grid-cols-[auto_auto_minmax(0,1fr)_auto] border-b border-[#222222] bg-[#0E0E0E]"
+      >
+        <!-- Brand plate -->
+        <div class="flex items-center gap-2.5 px-3 border-r border-[#222222] min-w-0">
+          <span class="block w-3 h-3 bg-[#FF4D00] shrink-0" aria-hidden="true"></span>
+          <div class="flex flex-col leading-none">
+            <span class="text-[15px] font-bold tracking-[0.06em] text-[#EDEDED]">REF-01</span>
+            <span class="mt-1 text-[9px] tracking-[0.16em] text-[#686868] uppercase">// DSP Audio Inspector</span>
+          </div>
+        </div>
+
+        <!-- Source -->
+        <div class="flex items-center gap-1.5 px-2.5 border-r border-[#222222]">
+          <button id="btn-load" class="btn" type="button" title="Load audio file (WAV, FLAC, AIFF, MP3, OGG) — or drop anywhere">
+            <span class="text-[#FF4D00]">+</span> Load Audio File
+          </button>
+          <button id="btn-synth" class="btn" type="button" aria-pressed="false" title="Procedural reference synth loop [G]">
+            <span class="led"></span> Synth Test Loop: <span data-state class="w-[3ch] text-left">OFF</span>
+          </button>
+          <input id="file-input" type="file" class="hidden" accept="audio/*,.wav,.wave,.flac,.aif,.aiff,.aifc,.mp3,.ogg,.oga,.opus,.m4a" />
+        </div>
+
+        <!-- Transport + scrubber + simulator -->
+        <div class="flex items-center gap-1.5 px-2.5 min-w-0">
+          <button id="btn-play" class="btn w-[76px] justify-center" type="button" title="Play / Pause [Space]" disabled>
+            <svg width="8" height="8" viewBox="0 0 8 8" aria-hidden="true" data-icon-play><path d="M1 0.5 L7.5 4 L1 7.5 Z" fill="currentColor" /></svg>
+            <svg width="8" height="8" viewBox="0 0 8 8" aria-hidden="true" data-icon-pause class="hidden"><rect x="1" y="0.5" width="2" height="7" fill="currentColor" /><rect x="5" y="0.5" width="2" height="7" fill="currentColor" /></svg>
+            <span data-label>Play</span>
+          </button>
+          <button id="btn-stop" class="btn" type="button" title="Stop & return to zero [Esc]" disabled>
+            <svg width="8" height="8" viewBox="0 0 8 8" aria-hidden="true"><rect x="0.5" y="0.5" width="7" height="7" fill="currentColor" /></svg>
+            Stop
+          </button>
+          <button id="btn-loop" class="btn" type="button" aria-pressed="false" title="Loop file playback [L]">
+            <span class="led"></span> Loop
+          </button>
+          <button id="btn-reset" class="btn" type="button" title="Reset all peak-holds, clip latches and radar ceiling [R]">Reset Peaks</button>
+
+          <!-- Scrubber -->
+          <div class="flex flex-col justify-center min-w-[160px] flex-1 h-full py-1.5 gap-1 min-h-0">
+            <div class="flex items-baseline justify-between gap-2 text-[10px] leading-none min-w-0">
+              <span class="num whitespace-nowrap">
+                <span id="time-pos" class="text-[#EDEDED]">00:00.000</span>
+                <span class="text-[#3A3A3A]">/</span>
+                <span id="time-dur" class="text-[#686868]">00:00.000</span>
+              </span>
+              <span id="file-name" class="truncate text-[9px] tracking-[0.12em] uppercase text-[#686868] min-w-0">No media loaded</span>
+            </div>
+            <div id="scrubber" class="viewport h-[22px] shrink-0 border border-[#222222] bg-[#050505] cursor-crosshair" role="slider" tabindex="0" aria-label="Playback position" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0">
+              <canvas></canvas>
+            </div>
+          </div>
+
+          <button id="btn-transcode" class="btn btn-signal" type="button" aria-pressed="false" title="Simulate 128 kbps MP3 brickwall low-pass (15.8 kHz) [T]">
+            <span class="led"></span> 16kHz Transcode Simulator: <span data-state class="w-[3ch] text-left">OFF</span>
+          </button>
+        </div>
+
+        <!-- File passport -->
+        <div class="grid grid-cols-3 grid-rows-2 border-l border-[#222222] text-[10px] leading-none w-[clamp(260px,22vw,348px)]">
+          <div class="flex flex-col justify-center gap-1 px-2.5 border-r border-b border-[#222222] min-w-0">
+            <span class="lbl">Sample Rate</span><span id="pp-sr" class="num truncate">—</span>
+          </div>
+          <div class="flex flex-col justify-center gap-1 px-2.5 border-r border-b border-[#222222] min-w-0">
+            <span class="lbl">Channels</span><span id="pp-ch" class="num truncate">—</span>
+          </div>
+          <div class="flex flex-col justify-center gap-1 px-2.5 border-b border-[#222222] min-w-0">
+            <span class="lbl">Bit Depth</span><span id="pp-bits" class="num truncate">—</span>
+          </div>
+          <div class="flex flex-col justify-center gap-1 px-2.5 border-r border-[#222222] min-w-0">
+            <span class="lbl">Container</span><span id="pp-container" class="num truncate">—</span>
+          </div>
+          <div class="flex flex-col justify-center gap-1 px-2.5 border-r border-[#222222] min-w-0">
+            <span class="lbl">Codec / Rate</span><span id="pp-codec" class="num truncate">—</span>
+          </div>
+          <div class="flex flex-col justify-center gap-1 px-2.5 min-w-0">
+            <span class="lbl">Duration</span><span id="pp-dur" class="num truncate">—</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- ═════════════════════ MAIN RACK ═════════════════════ -->
+      <main
+        class="grid min-h-0 min-w-0 relative overflow-hidden grid-cols-[clamp(250px,20vw,330px)_minmax(0,1fr)_clamp(290px,23vw,380px)]"
+      >
+        <!-- LEFT COLUMN -->
+        <section class="grid min-h-0 min-w-0 relative overflow-hidden grid-rows-[auto_minmax(0,1fr)] border-r border-[#222222] bg-[#0E0E0E]">
+          <!-- MODULE 01 -->
+          <div class="flex flex-col min-h-0 min-w-0 border-b border-[#222222]" id="mod-radar">
+            <div class="hdr">
+              <span><span class="hdr-id">01</span> // Transcode &amp; Cutoff Radar</span>
+              <span class="num">THR −78 dBFS</span>
+            </div>
+
+            <!-- Status badge -->
+            <div class="px-2.5 pt-2.5 pb-2 border-b border-[#222222]">
+              <div id="radar-badge" class="flex items-stretch border border-[#2A2A2A] bg-[#0A0A0A] rounded-[2px]" data-state="idle">
+                <div id="radar-badge-pip" class="w-1.5 shrink-0 bg-[#2A2A2A]"></div>
+                <div class="flex flex-col justify-center gap-1 px-2.5 py-2 min-w-0">
+                  <span id="radar-badge-title" class="text-[12px] font-bold tracking-[0.1em] uppercase leading-none text-[#686868] truncate">Awaiting Signal</span>
+                  <span id="radar-badge-sub" class="text-[9px] tracking-[0.12em] uppercase leading-tight text-[#686868] truncate">Load a file or engage the synth loop</span>
+                </div>
+              </div>
+              <div class="flex items-end justify-between mt-2.5">
+                <div class="flex flex-col gap-1">
+                  <span class="lbl">Peak-Locked Ceiling</span>
+                  <span class="num leading-none"><span id="radar-ceiling-big" class="text-[30px] font-medium text-[#EDEDED]">--.--</span><span class="text-[11px] text-[#686868] ml-1">kHz</span></span>
+                </div>
+                <div class="flex flex-col items-end gap-1">
+                  <span class="lbl">Acquired</span>
+                  <span id="radar-acq" class="num text-[11px] text-[#EDEDED] leading-none">0.0 s</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Ceiling scale + history -->
+            <div class="viewport h-[92px] border-b border-[#222222] bg-[#050505]" id="radar-history">
+              <canvas></canvas>
+            </div>
+
+            <!-- Telemetry grid -->
+            <div class="grid grid-cols-2 auto-rows-[46px]">
+              <div class="cell border-r border-b">
+                <span class="lbl">Peak Ceiling</span>
+                <span><span id="tm-ceiling" class="cell-val">--.--</span><span class="cell-unit">kHz</span></span>
+              </div>
+              <div class="cell border-b">
+                <span class="lbl">Live Cutoff</span>
+                <span><span id="tm-cutoff" class="cell-val">--.--</span><span class="cell-unit">kHz</span></span>
+              </div>
+              <div class="cell border-r border-b">
+                <span class="lbl">Spectral Centroid</span>
+                <span><span id="tm-centroid" class="cell-val">----</span><span class="cell-unit">Hz</span></span>
+              </div>
+              <div class="cell border-b">
+                <span class="lbl">Dynamic Crest</span>
+                <span><span id="tm-crest" class="cell-val">--.-</span><span class="cell-unit">dB</span></span>
+              </div>
+              <div class="cell border-r">
+                <span class="lbl">HF Energy &gt;16k</span>
+                <span><span id="tm-hf" class="cell-val">-.---</span><span class="cell-unit">%</span></span>
+              </div>
+              <div class="cell">
+                <span class="lbl">HF Level &gt;16k</span>
+                <span><span id="tm-hfdb" class="cell-val">---.-</span><span class="cell-unit">dB</span></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- MODULE 01B -->
+          <div class="flex flex-col min-h-0 min-w-0 relative overflow-hidden">
+            <div class="hdr">
+              <span><span class="hdr-id">01B</span> // HF Shelf Microscope</span>
+              <span class="num">10–22 kHz LIN</span>
+            </div>
+            <div class="viewport flex-1 bg-[#050505]" id="hf-zoom">
+              <canvas></canvas>
+            </div>
+          </div>
+        </section>
+
+        <!-- CENTER: MODULE 02 / 03 -->
+        <section class="flex flex-col min-h-0 min-w-0 relative overflow-hidden bg-[#0E0E0E]">
+          <div class="hdr">
+            <span class="truncate"><span class="hdr-id">02</span> // Main Dual-Mode Viewport</span>
+            <div class="flex items-center gap-2">
+              <span>Viewport:</span>
+              <div class="seg" role="group" aria-label="Viewport mode">
+                <button id="mode-2d" type="button" aria-pressed="true" title="[V] toggle">
+                  <span class="hidden 2xl:inline">02A // 2D FFT Precision Spectrum + Waterfall</span><span class="2xl:hidden">02A // 2D FFT + Waterfall</span>
+                </button>
+                <button id="mode-3d" type="button" aria-pressed="false" title="[V] toggle">
+                  <span class="hidden 2xl:inline">02B // 3D Ferrofluid Acoustic Field</span><span class="2xl:hidden">02B // 3D Ferrofluid</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid flex-1 min-h-0 min-w-0 relative overflow-hidden bg-[#050505]">
+            <!-- 02A -->
+            <div id="view-2d" class="viewport col-start-1 row-start-1 cursor-crosshair">
+              <canvas></canvas>
+            </div>
+            <!-- 02B -->
+            <div id="view-3d" class="viewport col-start-1 row-start-1 hidden cursor-grab active:cursor-grabbing">
+              <div class="hud top-2.5 left-3">
+                <div>Sub Displacement <span class="text-[#3A3A3A]">// 20–120 Hz</span></div>
+                <div><b id="hud-sub">+0.000</b> u &nbsp;<span id="hud-sub-db">-∞</span> dB</div>
+                <span class="hud-bar"><i id="hud-sub-bar"></i></span>
+              </div>
+              <div class="hud top-2.5 right-3 text-right">
+                <div>Mid Harmonics <span class="text-[#3A3A3A]">// 120 Hz–4 kHz</span></div>
+                <div><b id="hud-mid">0.000</b> lobe &nbsp;<span id="hud-mid-db">-∞</span> dB</div>
+                <span class="hud-bar ml-auto"><i id="hud-mid-bar"></i></span>
+              </div>
+              <div class="hud bottom-2.5 left-3">
+                <div>HF Micro-Texture <span class="text-[#3A3A3A]">// 8–22 kHz</span></div>
+                <div><b id="hud-hf">0.000</b> spike &nbsp;air <span id="hud-air-db">-∞</span> dB</div>
+                <span class="hud-bar"><i id="hud-hf-bar" style="background:#FF4D00"></i></span>
+              </div>
+              <div class="hud bottom-2.5 right-3 text-right">
+                <div>Vertex Count <span class="text-[#3A3A3A]">// Ico 1.4 · d48</span></div>
+                <div><b id="hud-verts">0</b> vtx &nbsp;<span id="hud-tris">0</span> tri</div>
+                <div><span id="hud-cpu">0.00</span> ms displace</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- RIGHT COLUMN -->
+        <section class="grid min-h-0 min-w-0 relative overflow-hidden grid-rows-[minmax(0,1.08fr)_minmax(0,1fr)] border-l border-[#222222] bg-[#0E0E0E]">
+          <!-- MODULE 04 -->
+          <div class="flex flex-col min-h-0 min-w-0 relative overflow-hidden border-b border-[#222222]">
+            <div class="hdr">
+              <span><span class="hdr-id">04</span> // Lissajous Goniometer</span>
+              <div class="seg" role="group" aria-label="Goniometer gain">
+                <button id="gonio-fixed" type="button" aria-pressed="true">Fixed</button>
+                <button id="gonio-agc" type="button" aria-pressed="false">AGC</button>
+              </div>
+            </div>
+            <div class="viewport flex-1 bg-[#050505]" id="gonio">
+              <canvas data-layer="phosphor"></canvas>
+              <canvas data-layer="overlay"></canvas>
+            </div>
+            <div class="h-[52px] shrink-0 border-t border-[#222222] grid grid-cols-[minmax(0,1fr)_auto] min-w-0">
+              <div class="flex flex-col min-w-0 px-2.5 py-1.5 gap-1">
+                <div class="flex justify-between lbl"><span>−1.0 Out of Phase</span><span>0</span><span>+1.0 In Phase</span></div>
+                <div class="viewport flex-1 border border-[#222222] bg-[#050505]" id="corr-meter"><canvas></canvas></div>
+              </div>
+              <div class="grid grid-rows-2 border-l border-[#222222] w-[104px]">
+                <div class="flex items-center justify-between px-2 border-b border-[#222222]">
+                  <span class="lbl">Corr</span><span id="corr-val" class="num text-[12px]">+0.00</span>
+                </div>
+                <div class="flex items-center justify-between px-2">
+                  <span class="lbl">Width</span><span id="width-val" class="num text-[12px]">0%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- MODULE 05 -->
+          <div class="flex flex-col min-h-0 min-w-0 relative overflow-hidden">
+            <div class="hdr">
+              <span><span class="hdr-id">05</span> // Peak &amp; RMS Meters</span>
+              <span class="num">IEC 268-18 · dBFS</span>
+            </div>
+            <div class="grid flex-1 min-h-0 min-w-0 grid-cols-[112px_minmax(0,1fr)] relative overflow-hidden">
+              <div class="flex flex-col min-h-0 min-w-0 border-r border-[#222222] relative overflow-hidden">
+                <div class="grid grid-cols-[30px_1fr_1fr] gap-1 px-1.5 pt-1.5 pb-1">
+                  <span></span>
+                  <button id="clip-l" class="clip" type="button" data-on="false" title="Clip latch L — click to reset">CLIP</button>
+                  <button id="clip-r" class="clip" type="button" data-on="false" title="Clip latch R — click to reset">CLIP</button>
+                </div>
+                <div class="viewport flex-1" id="meters"><canvas></canvas></div>
+              </div>
+              <div class="flex flex-col min-h-0 min-w-0 text-[10px] overflow-hidden">
+                <div class="grid grid-cols-[minmax(0,1fr)_56px_56px] h-6 items-center px-2.5 border-b border-[#222222] lbl">
+                  <span>dBFS</span><span class="text-right">L</span><span class="text-right">R</span>
+                </div>
+                <div class="grid grid-cols-[minmax(0,1fr)_56px_56px] h-7 items-center px-2.5 border-b border-[#222222]">
+                  <span class="lbl">Peak</span><span id="rd-peak-l" class="num text-right">-∞</span><span id="rd-peak-r" class="num text-right">-∞</span>
+                </div>
+                <div class="grid grid-cols-[minmax(0,1fr)_56px_56px] h-7 items-center px-2.5 border-b border-[#222222]">
+                  <span class="lbl">RMS</span><span id="rd-rms-l" class="num text-right">-∞</span><span id="rd-rms-r" class="num text-right">-∞</span>
+                </div>
+                <div class="grid grid-cols-[minmax(0,1fr)_56px_56px] h-7 items-center px-2.5 border-b border-[#222222]">
+                  <span class="lbl">Peak Hold</span><span id="rd-hold-l" class="num text-right text-[#FF4D00]">-∞</span><span id="rd-hold-r" class="num text-right text-[#FF4D00]">-∞</span>
+                </div>
+                <div class="grid grid-cols-[minmax(0,1fr)_auto] h-6 items-center px-2.5 border-b border-[#222222] lbl">
+                  <span>Loudness · BS.1770 K-wtd</span><span>LUFS</span>
+                </div>
+                <div class="flex items-center justify-between h-9 px-2.5 border-b border-[#222222]">
+                  <span class="lbl">Short-Term <span class="text-[#3A3A3A]">ST-EST 3s</span></span>
+                  <span id="rd-lufs-s" class="num text-[18px] font-medium text-[#EDEDED]">-∞</span>
+                </div>
+                <div class="flex items-center justify-between h-7 px-2.5 border-b border-[#222222]">
+                  <span class="lbl">Momentary <span class="text-[#3A3A3A]">400ms</span></span>
+                  <span id="rd-lufs-m" class="num">-∞</span>
+                </div>
+                <div class="flex items-center justify-between h-7 px-2.5 border-b border-[#222222]">
+                  <span class="lbl">Integrated <span class="text-[#3A3A3A]">Gated</span></span>
+                  <span id="rd-lufs-i" class="num">-∞</span>
+                </div>
+                <div class="flex items-center justify-between h-7 px-2.5 border-b border-[#222222]">
+                  <span class="lbl">PLR <span class="text-[#3A3A3A]">Peak−Int</span></span>
+                  <span id="rd-plr" class="num">--.-</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <!-- ═════════════════════ STATUS STRIP ═════════════════════ -->
+      <footer class="flex items-center min-w-0 border-t border-[#222222] bg-[#0B0B0B] text-[9px] tracking-[0.14em] uppercase text-[#686868] whitespace-nowrap">
+        <div class="flex items-center gap-1.5 px-2.5 h-full border-r border-[#222222]">
+          <span id="st-led" class="block w-1.5 h-1.5 bg-[#2A2A2A]"></span><span id="st-engine">Engine Idle</span>
+        </div>
+        <div class="px-2.5 h-full flex items-center border-r border-[#222222] num" id="st-ctx">CTX ----- Hz</div>
+        <div class="px-2.5 h-full flex items-center border-r border-[#222222] num" id="st-fft">FFT 8192 · Δf --.-- Hz</div>
+        <div class="px-2.5 h-full flex items-center border-r border-[#222222] num hidden xl:flex" id="st-lat">LAT --.- ms</div>
+        <div class="px-2.5 h-full flex items-center flex-1 min-w-0 truncate" id="st-msg">Ready. Drop an audio file anywhere or engage the synth test loop.</div>
+        <div class="px-2.5 h-full hidden 2xl:flex items-center border-l border-[#222222] text-[#3A3A3A]">
+          Space Play · Esc Stop · T Transcode · V View · G Synth · R Reset
+        </div>
+        <label class="flex items-center gap-2 px-2.5 h-full border-l border-[#222222]">
+          <span>Mon</span>
+          <input id="mon-vol" class="mon" type="range" min="-60" max="0" step="0.5" value="-6" aria-label="Monitor volume (post-analysis)" />
+          <span id="mon-val" class="num w-[6ch] text-right text-[#EDEDED]">-6.0 dB</span>
+        </label>
+        <div class="px-2.5 h-full flex items-center border-l border-[#222222] num" id="st-fps">--.- FPS · -.-- ms</div>
+      </footer>
+    </div>
+
+    <!-- Drag & Drop overlay -->
+    <div id="drop-overlay" class="fixed inset-0 z-50 hidden bg-[#0A0A0A]/95 select-none pointer-events-none">
+      <div class="absolute inset-4 border border-dashed border-[#FF4D00]"></div>
+      <div class="absolute left-4 top-4 w-5 h-5 border-l-2 border-t-2 border-[#FF4D00]"></div>
+      <div class="absolute right-4 top-4 w-5 h-5 border-r-2 border-t-2 border-[#FF4D00]"></div>
+      <div class="absolute left-4 bottom-4 w-5 h-5 border-l-2 border-b-2 border-[#FF4D00]"></div>
+      <div class="absolute right-4 bottom-4 w-5 h-5 border-r-2 border-b-2 border-[#FF4D00]"></div>
+      <div class="absolute inset-0 flex flex-col items-center justify-center gap-3">
+        <div class="w-10 h-10 border border-[#FF4D00] flex items-center justify-center text-[#FF4D00] text-[22px] leading-none">+</div>
+        <div class="text-[14px] font-bold tracking-[0.2em] uppercase text-[#EDEDED]">Release to Inspect</div>
+        <div class="text-[10px] tracking-[0.18em] uppercase text-[#686868]">WAV · FLAC · AIFF · MP3 · OGG · M4A — decoded at native sample rate</div>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
+
